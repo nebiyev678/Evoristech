@@ -1,0 +1,1137 @@
+page 2 (
+    name: Dashboard
+    alias: DASHBOARD
+    title: Dashboard
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+    }
+    javaScript {
+        functionAndGlobalVariableDeclaration:
+            ```javascript-browser
+            // function dtAi() {
+            //   var txt = document.getElementById('aiCmd').value;
+            //   if (!txt) return;
+            //   var out = document.getElementById('aiOut');
+            //   out.innerHTML = '<p class="dt-muted">Düşünürəm...</p>';
+            //   apex.server.process('AI_COMMAND', { x01: txt }, { dataType: 'text' })
+            //     .done(function (data) { out.innerHTML = data; })
+            //     .fail(function (j, t, e) {
+            //       out.innerHTML = '<p style="color:#B3261E">Xəta: ' + (e || t) + '</p>';
+            //     });
+            // }
+            
+            
+            function dtAnaliz() {
+              var txt = document.getElementById('anCmd').value;
+              if (!txt) return;
+              var out = document.getElementById('anOut');
+              out.innerHTML = '<p style="color:#6B6A64">Hesablanır...</p>';
+              apex.server.process('AI_ANALIZ', { x01: txt }, { dataType: 'text' })
+                .done(function (data) { out.innerHTML = data; })
+                .fail(function (j, t, e) {
+                  out.innerHTML = '<p style="color:#B3261E">Xəta: ' + (e || t) + '</p>';
+                });
+            }
+            
+            function dtAi() {
+              var txt = document.getElementById('aiCmd').value;
+              if (!txt) return;
+              var out = document.getElementById('aiOut');
+              out.innerHTML = '<p style="color:#6B6A64">Düşünürəm...</p>';
+              apex.server.process('AI_ASSISTANT', { x01: txt }, { dataType: 'text' })
+                .done(function (data) { out.innerHTML = data; })
+                .fail(function (j, t, e) {
+                  out.innerHTML = '<p style="color:#B3261E">Xəta: ' + (e || t) + '</p>';
+                });
+            }
+             
+            function dtAiSet(txt) {
+              var el = document.getElementById('aiCmd');
+              el.value = txt;
+              el.focus();
+              dtAi();
+            }
+            
+            var evRec     = null;    // SpeechRecognition obyekti
+            var evOn      = false;   // dinləyirik?
+            var evLang    = 'az-AZ'; // ilk cəhd; dəstəklənmirsə tr-TR-ə keçir
+            var evSendT   = null;    // göndərmə taymeri
+            var evHeard   = '';      // tanınmış mətn
+            
+            function evBar(cls, msg, showCancel) {
+              var bar = document.getElementById('evVoiceBar');
+              var m   = document.getElementById('evVoiceMsg');
+              var c   = document.getElementById('evVoiceCancel');
+              if (!bar) return;
+              bar.hidden = !msg;
+              bar.className = 'ev-voice-bar' + (cls ? ' ' + cls : '');
+              if (m) m.textContent = msg || '';
+              if (c) c.hidden = !showCancel;
+            }
+            
+            function evMicOn(on) {
+              var b = document.getElementById('evMic');
+              if (b) b.classList.toggle('listening', on);
+              evOn = on;
+            }
+            
+            // ---------- əsas ----------
+            function evVoice() {
+              // ikinci klik = dayandır
+              if (evOn) { evVoiceStop(); return; }
+            
+              var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+              if (!SR) {
+                evBar('err', 'Bu brauzer səs tanımanı dəstəkləmir. Chrome istifadə edin.');
+                return;
+              }
+            
+              evVoiceCancel();          // gözləyən göndərmə varsa ləğv et
+              evHeard = '';
+            
+              evRec = new SR();
+              evRec.lang            = evLang;
+              evRec.interimResults  = true;
+              evRec.continuous      = false;
+              evRec.maxAlternatives = 1;
+            
+              evRec.onstart = function () {
+                evMicOn(true);
+                evBar('live', 'Dinləyirəm… danışın');
+              };
+            
+              evRec.onresult = function (ev) {
+                var txt = '', fin = false;
+                for (var i = 0; i < ev.results.length; i++) {
+                  txt += ev.results[i][0].transcript;
+                  if (ev.results[i].isFinal) fin = true;
+                }
+                evHeard = txt;
+            
+                var box = document.getElementById('aiCmd');
+                if (box) box.value = txt;              // canlı yazılır
+            
+                if (fin) { evRec.stop(); }
+              };
+            
+              evRec.onerror = function (ev) {
+                evMicOn(false);
+                switch (ev.error) {
+                  case 'no-speech':
+                    evBar('err', 'Səs eşidilmədi. Mikrofonu yoxlayın və yenidən cəhd edin.');
+                    break;
+                  case 'not-allowed':
+                  case 'service-not-allowed':
+                    evBar('err', 'Mikrofona icazə verilmədi. Ünvan sətrindəki kilid işarəsindən icazə verin.');
+                    break;
+                  case 'network':
+                    evBar('err', 'Səs xidmətinə qoşulmaq olmadı. Şəbəkəni yoxlayın.');
+                    break;
+                  case 'language-not-supported':
+                    if (evLang === 'az-AZ') {          // bir dəfə türk dilinə keç
+                      evLang = 'tr-TR';
+                      evBar('', 'Azərbaycan dili dəstəklənmir — türk dili ilə cəhd edilir…');
+                      setTimeout(evVoice, 300);
+                      return;
+                    }
+                    evBar('err', 'Səs tanıma bu dil üçün mövcud deyil.');
+                    break;
+                  case 'aborted':
+                    evBar('', '');
+                    break;
+                  default:
+                    evBar('err', 'Səs tanıma xətası: ' + ev.error);
+                }
+              };
+            
+              evRec.onend = function () {
+                evMicOn(false);
+                var t = (evHeard || '').trim();
+                if (!t) return;                        // xəta mesajı onerror-da verilib
+            
+                // ---- təhlükəsizlik pəncərəsi ----
+                // AI_ASSISTANT məlumatı DƏYİŞƏ bilər (MOVE_TICKET).
+                // Səhv eşidilibsə istifadəçi dayandıra bilsin deyə
+                // dərhal yox, 2 saniyə sonra göndərilir.
+                evBar('sending', '« ' + t + ' » göndərilir…', true);
+                evSendT = setTimeout(function () {
+                  evSendT = null;
+                  evBar('', '');
+                  if (typeof dtAi === 'function') dtAi();
+                }, 2000);
+              };
+            
+              try {
+                evRec.start();
+              } catch (e) {
+                evMicOn(false);
+                evBar('err', 'Başlatmaq olmadı: ' + e.message);
+              }
+            }
+            
+            function evVoiceStop() {
+              if (evRec) { try { evRec.stop(); } catch (e) {} }
+              evMicOn(false);
+            }
+            
+            function evVoiceCancel() {
+              if (evSendT) { clearTimeout(evSendT); evSendT = null; }
+              evBar('', '');
+            }
+            
+            // Esc = dayandır / ləğv et
+            document.addEventListener('keydown', function (e) {
+              if (e.key !== 'Escape') return;
+              if (evOn)   evVoiceStop();
+              if (evSendT) evVoiceCancel();
+            });
+            ```
+    }
+    css {
+        inline:
+            ```css
+            /* =============================================================
+               SHARED STYLES — paste into EACH page:
+               Page Designer > click the page name (root node) > CSS > Inline
+               (Inline CSS avoids the #APP_FILES# loading problem entirely)
+               ============================================================= */
+            @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+            
+            .dt{font-family:'IBM Plex Sans',system-ui,sans-serif;color:#1A1A18}
+            .dt h2{font-family:'Manrope',system-ui,sans-serif;font-size:15px;font-weight:700;margin:0}
+            
+            /* KPI cards */
+            .dt-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+            .dt-kpi{background:#fff;border:1px solid #E3E1DB;border-radius:12px;padding:16px 18px}
+            .dt-kpi-label{font-size:12px;color:#6B6A64;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+            .dt-kpi-value{font-family:'Manrope',system-ui,sans-serif;font-size:26px;font-weight:800;margin-top:6px}
+            .dt-kpi-sub{font-size:12px;font-weight:600;margin-top:4px;color:#6B6A64}
+            .dt-green{color:#1A7F5A}.dt-red{color:#B3261E}
+            
+            /* Cards and tables */
+            .dt-card{background:#fff;border:1px solid #E3E1DB;border-radius:14px;overflow:hidden;margin-bottom:20px}
+            .dt-card-h{padding:14px 20px;border-bottom:1px solid #E3E1DB;display:flex;justify-content:space-between;align-items:center}
+            .dt-card-b{padding:18px 20px}
+            .dt-scroll{overflow-x:auto}
+            .dt-table{width:100%;border-collapse:collapse;font-size:13px}
+            .dt-table th{text-align:left;background:#F7F6F2;color:#6B6A64;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:11px 16px;border-bottom:1px solid #E3E1DB;white-space:nowrap}
+            .dt-table td{padding:13px 16px;border-bottom:1px solid #EDECE6;vertical-align:middle}
+            .dt-table tr:last-child td{border-bottom:none}
+            .dt-table tr.dt-alert td{background:#FBEAEA}
+            .dt-muted{color:#6B6A64}
+            
+            /* Status badges */
+            .dt-badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+            .dt-b-warn{background:#FCEFD9;color:#8A5A12}
+            .dt-b-ok{background:#E7F5EE;color:#1A7F5A}
+            .dt-b-bad{background:#F6D6D2;color:#8C2019}
+            .dt-b-neutral{background:#EDECE6;color:#57564F}
+            
+            /* Buttons */
+            .dt-btn{background:#0C6E6E;color:#fff;border:0;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px}
+            .dt-btn:hover{background:#095857}
+            .dt-btn-ghost{background:#fff;color:#B3261E;border:1px solid #E9C6C2}
+            .dt-btn-ghost:hover{background:#FBEAEA}
+            
+            /* Two-column layout */
+            .dt-grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+            .dt-grid2 .dt-card{margin-bottom:0}
+            
+            /* Progress bars */
+            .dt-bar{margin-bottom:14px}
+            .dt-bar-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+            .dt-track{height:8px;background:#EDECE6;border-radius:999px;overflow:hidden}
+            .dt-fill{height:100%;background:#0C6E6E;border-radius:999px}
+            .dt-fill.warn{background:#B7791F}.dt-fill.over{background:#B3261E}
+            
+            /* Kanban (Helpdesk) */
+            .dt-kanban{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+            .dt-col-h{display:flex;justify-content:space-between;align-items:center;padding:0 4px 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6B6A64}
+            .dt-count{background:#EDECE6;border-radius:999px;padding:2px 8px}
+            .dt-ticket{background:#fff;border:1px solid #E3E1DB;border-left:3px solid #6B6A64;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+            .dt-ticket.p-urgent{border-left-color:#B3261E}.dt-ticket.p-medium{border-left-color:#B7791F}
+            .dt-ticket.done{opacity:.75;border-left-color:#1A7F5A}
+            .dt-ticket-id{font-size:12px;color:#6B6A64;margin-bottom:4px}
+            .dt-ticket-t{font-size:13px;font-weight:600;margin-bottom:10px}
+            .dt-ticket-f{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#6B6A64}
+            .dt-ticket .dt-btn{margin-top:10px;width:100%}
+            
+            /* Order tracking steps (Client Portal) */
+            .dt-track-row{display:flex;align-items:center;gap:20px;padding:16px 20px;border-bottom:1px solid #EDECE6}
+            .dt-track-row:last-child{border-bottom:none}
+            .dt-track-id{width:150px;flex-shrink:0;font-size:13px}
+            .dt-steps{flex:1;display:flex;align-items:center;min-width:280px}
+            .dt-step{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:#9C9A91}
+            .dt-step.on{color:#1A1A18;font-weight:600}
+            .dt-dot{width:14px;height:14px;border-radius:50%;background:#E3E1DB}
+            .dt-step.on .dt-dot{background:#0C6E6E}
+            .dt-line{flex:1;height:2px;background:#E3E1DB;margin-bottom:18px}
+            .dt-line.on{background:#0C6E6E}
+            .dt-eta{width:110px;text-align:right;flex-shrink:0;font-size:12px;color:#6B6A64}
+            
+            @media (max-width:900px){
+              .dt-grid2,.dt-kanban{grid-template-columns:1fr}
+              .dt-track-row{flex-wrap:wrap}
+            }
+            
+            .ai-bar{background:#fff;border:1px solid #E3E1DB;border-radius:16px;padding:20px 22px}
+            .ai-bar-row{display:flex;align-items:center;gap:10px;
+              background:#F7F6F2;border:1px solid #E3E1DB;border-radius:12px;
+              padding:6px 8px 6px 14px;transition:border-color .15s,background .15s}
+            .ai-bar-row:focus-within{border-color:#0C6E6E;background:#fff;
+              box-shadow:0 0 0 3px rgba(12,110,110,.10)}
+            .ai-bar-icon{width:20px;height:20px;color:#9C9A91;flex:0 0 20px}
+            .ai-bar-row:focus-within .ai-bar-icon{color:#0C6E6E}
+            
+            .ai-bar-input{flex:1 1 auto;width:100%;min-width:0;
+              border:0;background:transparent;outline:none;
+              font-family:inherit;font-size:15px;color:#1A1A18;padding:9px 0}
+            .ai-bar-input::placeholder{color:#9C9A91}
+            
+            .ai-bar-btn{flex:0 0 auto;background:#0C6E6E;color:#fff;border:0;
+              border-radius:9px;padding:10px 18px;font-family:inherit;
+              font-size:14px;font-weight:700;cursor:pointer}
+            .ai-bar-btn:hover{background:#095857}
+            
+            .ai-bar-hints{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+            .ai-chip{font-size:12px;color:#0C6E6E;background:#EFF7F6;
+              border:1px solid #CFE5E3;border-radius:999px;padding:5px 12px;cursor:pointer}
+            .ai-chip:hover{background:#E0F0EE}
+            
+            .ai-bar-out{margin-top:16px}
+            .ai-bar-out:empty{display:none}
+            
+            @media (max-width:640px){
+              .ai-bar-btn{padding:10px 14px}
+              .ai-bar-input{font-size:14px}
+            }
+            
+            .ai-bar-row{display:flex;align-items:center;gap:8px}
+            .ai-bar-input{flex:1;min-width:0}
+            
+            .ev-mic{
+              display:inline-flex; align-items:center; justify-content:center;
+              width:38px; height:38px; flex:none; padding:0;
+              border:1px solid #E3E1DB; border-radius:9px;
+              background:#FFFFFF; color:#0C6E6E; cursor:pointer;
+              transition:background .15s ease, color .15s ease, border-color .15s ease;
+            }
+            .ev-mic:hover{background:#F4F3EF}
+            .ev-mic:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(12,110,110,.25)}
+            .ev-mic[disabled]{opacity:.45;cursor:default}
+            .ev-mic.listening{
+              background:#0C6E6E; color:#FFFFFF; border-color:#0C6E6E;
+              animation:ev-pulse 1.3s ease-in-out infinite;
+            }
+            @keyframes ev-pulse{
+              0%,100%{box-shadow:0 0 0 0 rgba(12,110,110,.45)}
+              50%    {box-shadow:0 0 0 7px rgba(12,110,110,0)}
+            }
+            
+            .ev-voice-bar{display:flex;align-items:center;gap:8px;margin-top:8px;
+              font-size:13px;color:#6B6A64}
+            .ev-voice-dot{width:7px;height:7px;border-radius:50%;background:#B9C6C5;flex:none}
+            .ev-voice-bar.live    .ev-voice-dot{background:#0C6E6E;animation:ev-blink 1s infinite}
+            .ev-voice-bar.sending .ev-voice-dot{background:#B7791F}
+            .ev-voice-bar.err     .ev-voice-dot{background:#B3261E}
+            .ev-voice-bar.err     .ev-voice-msg{color:#B3261E}
+            @keyframes ev-blink{50%{opacity:.25}}
+            .ev-voice-msg{flex:1;min-width:0}
+            .ev-voice-cancel{flex:none;padding:3px 10px;border:1px solid #E3E1DB;
+              border-radius:7px;background:#FFFFFF;color:#16302F;
+              font-size:12px;font-weight:600;cursor:pointer}
+            .ev-voice-cancel:hover{background:#F4F3EF}
+            
+            @media (prefers-reduced-motion:reduce){
+              .ev-mic.listening{animation:none}
+              .ev-voice-bar.live .ev-voice-dot{animation:none}
+            }
+            ```
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+
+    region ai-calculate (
+        name: AI Calculate
+        type: dynamicContent
+        source {
+            plsqlFunctionBody:
+                ```plsql
+                declare
+                  l_h clob;
+                begin
+                  l_h := '<div class="dt"><div class="dt-card">'||
+                         '<div class="dt-card-h"><h2>Təhlil sorğusu</h2></div>'||
+                         '<div class="dt-card-b">'||
+                         '<div style="display:flex;gap:10px;align-items:center">'||
+                         '<input type="text" id="anCmd" class="dt-ai-input" '||
+                         'placeholder="Məsələn: region üzrə orta sifariş məbləği" '||
+                         'onkeydown="if(event.key===''Enter'')dtAnaliz()">'||
+                         '<button type="button" class="dt-btn" onclick="dtAnaliz()">Hesabla</button>'||
+                         '</div>'||
+                         '<div style="margin-top:10px;font-size:12px;color:#6B6A64">'||
+                         'Nümunələr: «region üzrə cəmi gəlir» &middot; '||
+                         '«status üzrə orta məbləğ» &middot; '||
+                         '«son 30 günün aylıq gəliri» &middot; '||
+                         '«açıq sifarişlərin cəmi region üzrə»'||
+                         '</div>'||
+                         '<div id="anOut" style="margin-top:16px"></div>'||
+                         '</div></div></div>';
+                  return l_h;
+                end;
+                ```
+        }
+        layout {
+            sequence: 40
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Region--scrollBody
+            ]
+        }
+        config {
+            buildOption: @commented-out
+        }
+    )
+
+    region ai-region (
+        name: AI Region
+        type: dynamicContent
+        source {
+            plsqlFunctionBody:
+                ```plsql
+                declare
+                  l_h clob;
+                begin
+                  l_h := '<div class="dt"><div class="ai-bar">'||
+                         '<div class="ai-bar-row">'||
+                         '<svg class="ai-bar-icon" viewBox="0 0 24 24" fill="none" '||
+                         'stroke="currentColor" stroke-width="2" stroke-linecap="round">'||
+                         '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4.5-4.5"/></svg>'||
+                         '<input type="text" id="aiCmd" class="ai-bar-input" '||
+                         'placeholder="Sual verin və ya əmr yazın..." '||
+                         'onkeydown="if(event.key===''Enter'')dtAi()">'||
+                         '<button type="button" id="evMic" class="ev-mic" onclick="evVoice()" '||
+                         'title="Səslə danış" aria-label="Səslə danış">'||
+                         '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" '||
+                         'stroke="currentColor" stroke-width="2" stroke-linecap="round" '||
+                         'stroke-linejoin="round" aria-hidden="true">'||
+                         '<rect x="9" y="2" width="6" height="11" rx="3"></rect>'||
+                         '<path d="M5 11a7 7 0 0 0 14 0"></path>'||
+                         '<path d="M12 18v3"></path></svg></button>'||
+                         '<button type="button" class="ai-bar-btn" onclick="dtAi()">Göndər</button>'||
+                         '</div>'||
+                         '<div class="ev-voice-bar" id="evVoiceBar" hidden>'||
+                         '<span class="ev-voice-dot" aria-hidden="true"></span>'||
+                         '<span class="ev-voice-msg" id="evVoiceMsg" role="status" '||
+                         'aria-live="polite"></span>'||
+                         '<button type="button" class="ev-voice-cancel" id="evVoiceCancel" '||
+                         'onclick="evVoiceCancel()" hidden>Ləğv et</button>'||
+                         '</div>'||
+                         '<div class="ai-bar-hints">'||
+                         '<span class="ai-chip" onclick="dtAiSet(''təcili sorğuları göstər'')">təcili sorğular</span>'||
+                         '<span class="ai-chip" onclick="dtAiSet(''4821 nömrəli sorğunu tap'')">nömrə ilə tap</span>'||
+                         '<span class="ai-chip" onclick="dtAiSet(''stoku az olan məhsullar'')">az stok</span>'||
+                         '<span class="ai-chip" onclick="dtAiSet(''region üzrə cəmi gəlir'')">region üzrə gəlir</span>'||
+                         '<span class="ai-chip" onclick="dtAiSet(''status üzrə orta məbləğ'')">orta məbləğ</span>'||
+                         '<span class="ai-chip" onclick="dtAiSet(''həftəlik xülasə'')">həftəlik xülasə</span>'||
+                         '</div>'||
+                         '<div id="aiOut" class="ai-bar-out"></div>'||
+                         '</div></div>';
+                  return l_h;
+                end;
+                ```
+        }
+        layout {
+            sequence: 30
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Region--scrollBody
+            ]
+        }
+    )
+
+    region breadcrumb (
+        name: Breadcrumb
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: [
+                #DEFAULT#
+                t-BreadcrumbRegion--useBreadcrumbTitle
+            ]
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region new (
+        name: Dashboard
+        type: dynamicContent
+        source {
+            plsqlFunctionBody:
+                ```plsql
+                declare
+                  l_h        clob;
+                  l_revenue  number;
+                  l_open     number;
+                  l_pastdue  number;
+                  l_rate     number;
+                  l_max      number;
+                  procedure p(s varchar2) is begin l_h := l_h || s; end;
+                begin
+                  select nvl(sum(case when status <> 'CANCELLED' then amount end),0),
+                         sum(case when status = 'OPEN' then 1 else 0 end),
+                         sum(case when status = 'PAST_DUE' then 1 else 0 end),
+                         round(100 * sum(case when status = 'FULFILLED' then 1 else 0 end)
+                               / nullif(sum(case when status <> 'CANCELLED' then 1 else 0 end),0), 1)
+                    into l_revenue, l_open, l_pastdue, l_rate
+                    from orders;
+                  select nullif(max(total_revenue),0) into l_max from v_region_summary;
+                 
+                  p('<div class="dt">');
+                 
+                  -- Göstərici kartları
+                  p('<div class="dt-kpis">');
+                  p('<div class="dt-kpi"><div class="dt-kpi-label">Gəlir</div><div class="dt-kpi-value">'||to_char(l_revenue,'FM999G999G990')||' ₼</div></div>');
+                  p('<div class="dt-kpi"><div class="dt-kpi-label">Açıq sifarişlər</div><div class="dt-kpi-value">'||l_open||'</div></div>');
+                  p('<div class="dt-kpi"><div class="dt-kpi-label">Vaxtı keçmiş</div><div class="dt-kpi-value dt-red">'||l_pastdue||'</div></div>');
+                  p('<div class="dt-kpi"><div class="dt-kpi-label">İcra faizi</div><div class="dt-kpi-value dt-green">'||nvl(to_char(l_rate),'0')||'%</div></div>');
+                  p('</div>');
+                 
+                  p('<div class="dt-grid2">');
+                 
+                  -- Son sifarişlər
+                  p('<div class="dt-card"><div class="dt-card-h"><h2>Son sifarişlər</h2></div>');
+                  p('<div class="dt-scroll"><table class="dt-table"><thead><tr>');
+                  p('<th>Sifariş №</th><th>Müştəri</th><th>Region</th><th>Məbləğ</th><th>Status</th>');
+                  p('</tr></thead><tbody>');
+                  for r in (select * from v_orders_detail order by order_date desc fetch first 8 rows only) loop
+                    p('<tr>');
+                    p('<td><b>'||apex_escape.html(r.order_number)||'</b></td>');
+                    p('<td>'||apex_escape.html(r.customer_name)||'</td>');
+                    p('<td class="dt-muted">'||apex_escape.html(r.region_name)||'</td>');
+                    p('<td><b>'||to_char(r.amount,'FM999G999G990')||' ₼</b></td>');
+                    p('<td><span class="dt-badge '||
+                        case r.status when 'FULFILLED' then 'dt-b-ok'
+                                      when 'OPEN'      then 'dt-b-warn'
+                                      when 'PAST_DUE'  then 'dt-b-bad'
+                                      else 'dt-b-neutral' end||'">'||
+                        case r.status when 'FULFILLED' then 'İcra olunub'
+                                      when 'OPEN'      then 'Açıq'
+                                      when 'PAST_DUE'  then 'Vaxtı keçib'
+                                      else 'Ləğv edilib' end||'</span></td>');
+                    p('</tr>');
+                  end loop;
+                  p('</tbody></table></div></div>');
+                 
+                  -- Region üzrə gəlir
+                  p('<div class="dt-card"><div class="dt-card-h"><h2>Region üzrə gəlir</h2></div><div class="dt-card-b">');
+                  for g in (select * from v_region_summary order by total_revenue desc) loop
+                    p('<div class="dt-bar"><div class="dt-bar-top"><span>'||apex_escape.html(g.region_name)||'</span>');
+                    p('<b>'||to_char(g.total_revenue,'FM999G999G990')||' ₼</b></div>');
+                    p('<div class="dt-track"><div class="dt-fill" style="width:'||
+                        nvl(round(100 * g.total_revenue / l_max),0)||'%"></div></div></div>');
+                  end loop;
+                  p('</div></div>');
+                 
+                  p('</div>');
+                  p('</div>');
+                  return l_h;
+                end;
+                ```
+        }
+        layout {
+            sequence: 20
+            slot: body
+        }
+        appearance {
+            template: @/blank-with-attributes
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    process ai-analiz (
+        name: AI_ANALIZ
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                  l_input   varchar2(4000) := apex_application.g_x01;
+                  l_json    clob;
+                  l_metric  varchar2(30);
+                  l_dim     varchar2(30);
+                  l_status  varchar2(30);
+                  l_days    number;
+                  l_out     clob := '';
+                  l_rows    clob := '';
+                  l_total   number := 0;
+                  l_cnt     number := 0;
+                  l_label   varchar2(100);
+                  l_dimname varchar2(100);
+                 
+                  procedure p(s varchar2) is begin l_out := l_out || s; end;
+                begin
+                  ------------------------------------------------------------------
+                  -- 1. Model yalnız hesablama növünü seçir (rəqəm hesablamır)
+                  ------------------------------------------------------------------
+                  l_json := apex_ai.generate(
+                    p_system_prompt =>
+                      'İstifadəçinin sorğusunu JSON-a çevir. YALNIZ JSON qaytar. '||
+                      'Struktur: {"metric":"...","dimension":"...","status":null,"days":null}. '||
+                      'metric dəyərləri: SUM (cəmi məbləğ), AVG (orta məbləğ), '||
+                      'COUNT (sifariş sayı), MAX (ən böyük), MIN (ən kiçik). '||
+                      'dimension dəyərləri: REGION, STATUS, MONTH, NONE. '||
+                      'status dəyərləri (filtr üçün, yoxdursa null): OPEN, FULFILLED, '||
+                      'PAST_DUE, CANCELLED. '||
+                      'days: son N günü göstərir, qeyd olunmayıbsa null.',
+                    p_prompt            => l_input,
+                    p_service_static_id => 'MAIN_AI');
+                 
+                  l_json := regexp_replace(l_json, '\```(json)?', '');
+                 
+                  l_metric := upper(json_value(l_json, '$.metric'));
+                  l_dim    := upper(json_value(l_json, '$.dimension'));
+                  l_status := upper(json_value(l_json, '$.status'));
+                  l_days   := json_value(l_json, '$.days' returning number);
+                 
+                  -- Yalnız icazəli dəyərlər qəbul olunur
+                  if l_metric not in ('SUM','AVG','COUNT','MAX','MIN') then
+                    l_metric := 'SUM';
+                  end if;
+                  if l_dim not in ('REGION','STATUS','MONTH','NONE') then
+                    l_dim := 'NONE';
+                  end if;
+                  if l_status is not null
+                     and l_status not in ('OPEN','FULFILLED','PAST_DUE','CANCELLED') then
+                    l_status := null;
+                  end if;
+                  if l_days is not null and (l_days <= 0 or l_days > 3650) then
+                    l_days := null;
+                  end if;
+                 
+                  l_label := case l_metric
+                               when 'SUM'   then 'Cəmi məbləğ'
+                               when 'AVG'   then 'Orta məbləğ'
+                               when 'COUNT' then 'Sifariş sayı'
+                               when 'MAX'   then 'Ən böyük məbləğ'
+                               else              'Ən kiçik məbləğ' end;
+                  l_dimname := case l_dim
+                                 when 'REGION' then 'Region'
+                                 when 'STATUS' then 'Status'
+                                 when 'MONTH'  then 'Ay'
+                                 else               'Ümumi' end;
+                 
+                  ------------------------------------------------------------------
+                  -- 2. BÜTÜN HESABLAMA SQL-DƏ APARILIR
+                  --    Model heç bir rəqəmə toxunmur. SQL mətni sabitdir,
+                  --    dəyişənlər yalnız bind kimi istifadə olunur.
+                  ------------------------------------------------------------------
+                  for r in (
+                    select grp,
+                           case l_metric
+                             when 'SUM'   then sum_amt
+                             when 'AVG'   then avg_amt
+                             when 'COUNT' then cnt
+                             when 'MAX'   then max_amt
+                             else              min_amt
+                           end as val
+                      from (
+                        select case l_dim
+                                 when 'REGION' then region_name
+                                 when 'STATUS' then status
+                                 when 'MONTH'  then to_char(order_date,'YYYY-MM')
+                                 else               'Ümumi'
+                               end                      as grp,
+                               nvl(sum(amount),0)       as sum_amt,
+                               round(avg(amount),2)     as avg_amt,
+                               count(*)                 as cnt,
+                               max(amount)              as max_amt,
+                               min(amount)              as min_amt
+                          from v_orders_detail
+                         where (l_status is null or status = l_status)
+                           and (l_days   is null or order_date >= trunc(sysdate) - l_days)
+                         group by case l_dim
+                                    when 'REGION' then region_name
+                                    when 'STATUS' then status
+                                    when 'MONTH'  then to_char(order_date,'YYYY-MM')
+                                    else               'Ümumi'
+                                  end
+                      )
+                     order by val desc
+                  ) loop
+                    l_rows := l_rows ||
+                      '<tr><td><b>'||apex_escape.html(r.grp)||'</b></td>'||
+                      '<td style="text-align:right"><b>'||
+                      case when l_metric = 'COUNT'
+                           then to_char(r.val,'FM999G999G990')
+                           else to_char(r.val,'FM999G999G990D00')||' ₼' end||
+                      '</b></td></tr>';
+                    l_total := l_total + nvl(r.val,0);
+                    l_cnt   := l_cnt + 1;
+                  end loop;
+                 
+                  ------------------------------------------------------------------
+                  -- 3. Nəticəni göstər
+                  ------------------------------------------------------------------
+                  if l_cnt = 0 then
+                    p('<p>Bu şərtlərə uyğun sifariş tapılmadı.</p>');
+                  else
+                    p('<p style="font-size:13px;color:#6B6A64;margin-bottom:10px">'||
+                      l_label||' &middot; '||l_dimname||' üzrə'||
+                      case when l_status is not null then ' &middot; filtr: '||l_status end||
+                      case when l_days   is not null then ' &middot; son '||l_days||' gün' end||
+                      '</p>');
+                    p('<table class="dt-table"><thead><tr><th>'||l_dimname||'</th>'||
+                      '<th style="text-align:right">'||l_label||'</th></tr></thead><tbody>');
+                    p(l_rows);
+                    if l_cnt > 1 and l_metric in ('SUM','COUNT') then
+                      p('<tr style="background:#F7F6F2"><td><b>Cəmi</b></td>'||
+                        '<td style="text-align:right"><b>'||
+                        case when l_metric = 'COUNT'
+                             then to_char(l_total,'FM999G999G990')
+                             else to_char(l_total,'FM999G999G990D00')||' ₼' end||
+                        '</b></td></tr>');
+                    end if;
+                    p('</tbody></table>');
+                    p('<p style="font-size:11px;color:#9C9A91;margin-top:8px">'||
+                      'Rəqəmlər verilənlər bazasından hesablanıb.</p>');
+                  end if;
+                 
+                  htp.p(l_out);
+                exception
+                  when others then
+                    htp.p('<p style="color:#B3261E">Xəta: '||apex_escape.html(sqlerrm)||'</p>');
+                end;
+                 
+                ```
+        }
+        execution {
+            sequence: 20
+            point: ajaxCallback
+        }
+        advanced {
+            executionMappingIdentifier: 9349106014170305
+        }
+        config {
+            buildOption: @commented-out
+        }
+    )
+
+    process ai-assistan (
+        name: AI_ASSISTANT
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                  l_input   varchar2(4000) := apex_application.g_x01;
+                  l_json    clob;
+                  l_action  varchar2(30);
+                  l_id      number;
+                  l_status  varchar2(30);
+                  l_prio    varchar2(20);
+                  l_metric  varchar2(20);
+                  l_dim     varchar2(20);
+                  l_ostat   varchar2(20);
+                  l_days    number;
+                  l_out     clob := '';
+                  l_rows    clob := '';
+                  l_data    clob := '';
+                  l_total   number := 0;
+                  l_cnt     number := 0;
+                  l_label   varchar2(100);
+                  l_dimname varchar2(100);
+                 
+                  procedure p(s varchar2) is begin l_out := l_out || s; end;
+                 
+                  procedure row_ticket(t v_tickets%rowtype) is
+                  begin
+                    p('<tr><td><b>№'||t.ticket_id||'</b></td>');
+                    p('<td>'||apex_escape.html(t.subject)||'</td>');
+                    p('<td>'||case t.priority when 'URGENT' then 'Təcili'
+                                              when 'MEDIUM' then 'Orta'
+                                              else 'Aşağı' end||'</td>');
+                    p('<td>'||case t.status when 'NEW' then 'Yeni'
+                                            when 'IN_PROGRESS' then 'İcradadır'
+                                            when 'WAITING' then 'Gözləyir'
+                                            else 'Həll edilib' end||'</td></tr>');
+                  end;
+                begin
+                  ------------------------------------------------------------------
+                  -- 1. Model niyyəti müəyyən edir (heç bir hesablama aparmır)
+                  ------------------------------------------------------------------
+                  l_json := apex_ai.generate(
+                    p_system_prompt =>
+                      'İstifadəçinin sorğusunu JSON-a çevir. YALNIZ JSON qaytar, '||
+                      'izahat və markdown yazma. Struktur: '||
+                      '{"action":"...","ticket_id":null,"status":null,"priority":null,'||
+                      '"metric":null,"dimension":null,"order_status":null,"days":null}. '||
+                      'İcazəli action dəyərləri: '||
+                      'FIND_TICKET (sorğunu nömrə ilə tap), '||
+                      'LIST_TICKETS (prioritet və ya statusa görə siyahı), '||
+                      'MOVE_TICKET (sorğunun statusunu dəyiş), '||
+                      'LOW_STOCK (stoku az məhsullar), '||
+                      'ANALYZE (sifariş məbləğləri üzrə hesablama), '||
+                      'SUMMARY (mətnlə xülasə), '||
+                      'UNKNOWN (anlaşılmadı). '||
+                      'status: NEW, IN_PROGRESS, WAITING, RESOLVED. '||
+                      'priority: URGENT, MEDIUM, LOW. '||
+                      'ANALYZE üçün: metric = SUM, AVG, COUNT, MAX, MIN; '||
+                      'dimension = REGION, STATUS, MONTH, NONE; '||
+                      'order_status = OPEN, FULFILLED, PAST_DUE, CANCELLED; '||
+                      'days = son neçə gün (qeyd olunmayıbsa null).',
+                    p_prompt            => l_input,
+                    p_service_static_id => 'MAIN_AI');
+                 
+                  l_json := regexp_replace(l_json, '\```(json)?', '');
+                 
+                  l_action := upper(json_value(l_json, '$.action'));
+                  l_id     := json_value(l_json, '$.ticket_id' returning number);
+                  l_status := upper(json_value(l_json, '$.status'));
+                  l_prio   := upper(json_value(l_json, '$.priority'));
+                  l_metric := upper(json_value(l_json, '$.metric'));
+                  l_dim    := upper(json_value(l_json, '$.dimension'));
+                  l_ostat  := upper(json_value(l_json, '$.order_status'));
+                  l_days   := json_value(l_json, '$.days' returning number);
+                 
+                  ------------------------------------------------------------------
+                  -- 2. Yalnız icazəli əməliyyatlar
+                  ------------------------------------------------------------------
+                  if l_action = 'FIND_TICKET' and l_id is not null then
+                    p('<table class="dt-table"><thead><tr><th>№</th><th>Mövzu</th>'||
+                      '<th>Prioritet</th><th>Status</th></tr></thead><tbody>');
+                    for t in (select * from v_tickets where ticket_id = l_id) loop
+                      row_ticket(t); l_cnt := l_cnt + 1;
+                    end loop;
+                    p('</tbody></table>');
+                    if l_cnt = 0 then
+                      l_out := '<p>№'||l_id||' nömrəli sorğu tapılmadı.</p>';
+                    end if;
+                 
+                  elsif l_action = 'LIST_TICKETS' then
+                    p('<table class="dt-table"><thead><tr><th>№</th><th>Mövzu</th>'||
+                      '<th>Prioritet</th><th>Status</th></tr></thead><tbody>');
+                    for t in (select * from v_tickets
+                               where (l_prio   is null or priority = l_prio)
+                                 and (l_status is null or status   = l_status)
+                               order by created_date desc
+                               fetch first 20 rows only) loop
+                      row_ticket(t); l_cnt := l_cnt + 1;
+                    end loop;
+                    p('</tbody></table><p class="dt-muted">'||l_cnt||' sorğu tapıldı.</p>');
+                 
+                  elsif l_action = 'MOVE_TICKET' and l_id is not null
+                        and l_status in ('NEW','IN_PROGRESS','WAITING','RESOLVED') then
+                    update tickets
+                       set status        = l_status,
+                           resolved_date = case when l_status = 'RESOLVED' then sysdate end
+                     where ticket_id = l_id;
+                    if sql%rowcount = 0 then
+                      p('<p>№'||l_id||' nömrəli sorğu tapılmadı.</p>');
+                    else
+                      p('<p style="color:#1A7F5A"><b>№'||l_id||' sorğusunun statusu dəyişdirildi: '||
+                        case l_status when 'NEW' then 'Yeni'
+                                      when 'IN_PROGRESS' then 'İcradadır'
+                                      when 'WAITING' then 'Gözləyir'
+                                      else 'Həll edilib' end||'</b></p>');
+                    end if;
+                 
+                  elsif l_action = 'LOW_STOCK' then
+                    p('<table class="dt-table"><thead><tr><th>Kod</th><th>Məhsul</th>'||
+                      '<th>Mövcud</th><th>Status</th></tr></thead><tbody>');
+                    for i in (select * from v_inventory_status
+                               where status <> 'In stock' order by qty_on_hand) loop
+                      p('<tr><td>'||apex_escape.html(i.sku)||'</td>');
+                      p('<td>'||apex_escape.html(i.item_name)||'</td>');
+                      p('<td><b>'||i.qty_on_hand||'</b></td>');
+                      p('<td>'||case i.status when 'Low stock' then 'Stok azdır'
+                                              else 'Stokda yoxdur' end||'</td></tr>');
+                      l_cnt := l_cnt + 1;
+                    end loop;
+                    p('</tbody></table><p class="dt-muted">'||l_cnt||' məhsul.</p>');
+                 
+                  ------------------------------------------------------------------
+                  -- HESABLAMA: bütün riyaziyyat SQL-də, model rəqəmə toxunmur
+                  ------------------------------------------------------------------
+                  elsif l_action = 'ANALYZE' then
+                    if l_metric not in ('SUM','AVG','COUNT','MAX','MIN') then l_metric := 'SUM'; end if;
+                    if l_dim    not in ('REGION','STATUS','MONTH','NONE')  then l_dim    := 'NONE'; end if;
+                    if l_ostat is not null
+                       and l_ostat not in ('OPEN','FULFILLED','PAST_DUE','CANCELLED') then
+                      l_ostat := null;
+                    end if;
+                    if l_days is not null and (l_days <= 0 or l_days > 3650) then l_days := null; end if;
+                 
+                    l_label := case l_metric when 'SUM' then 'Cəmi məbləğ'
+                                             when 'AVG' then 'Orta məbləğ'
+                                             when 'COUNT' then 'Sifariş sayı'
+                                             when 'MAX' then 'Ən böyük məbləğ'
+                                             else 'Ən kiçik məbləğ' end;
+                    l_dimname := case l_dim when 'REGION' then 'Region'
+                                            when 'STATUS' then 'Status'
+                                            when 'MONTH' then 'Ay'
+                                            else 'Ümumi' end;
+                 
+                    for r in (
+                      select grp,
+                             case l_metric when 'SUM' then sum_amt
+                                           when 'AVG' then avg_amt
+                                           when 'COUNT' then cnt
+                                           when 'MAX' then max_amt
+                                           else min_amt end as val
+                        from (
+                          select case l_dim when 'REGION' then region_name
+                                            when 'STATUS' then status
+                                            when 'MONTH'  then to_char(order_date,'YYYY-MM')
+                                            else 'Ümumi' end     as grp,
+                                 nvl(sum(amount),0) as sum_amt,
+                                 round(avg(amount),2) as avg_amt,
+                                 count(*) as cnt,
+                                 max(amount) as max_amt,
+                                 min(amount) as min_amt
+                            from v_orders_detail
+                           where (l_ostat is null or status = l_ostat)
+                             and (l_days  is null or order_date >= trunc(sysdate) - l_days)
+                           group by case l_dim when 'REGION' then region_name
+                                               when 'STATUS' then status
+                                               when 'MONTH'  then to_char(order_date,'YYYY-MM')
+                                               else 'Ümumi' end
+                        )
+                       order by val desc
+                    ) loop
+                      l_rows := l_rows||'<tr><td><b>'||apex_escape.html(r.grp)||'</b></td>'||
+                        '<td style="text-align:right"><b>'||
+                        case when l_metric = 'COUNT' then to_char(r.val,'FM999G999G990')
+                             else to_char(r.val,'FM999G999G990D00')||' ₼' end||
+                        '</b></td></tr>';
+                      l_total := l_total + nvl(r.val,0);
+                      l_cnt := l_cnt + 1;
+                    end loop;
+                 
+                    if l_cnt = 0 then
+                      p('<p>Bu şərtlərə uyğun sifariş tapılmadı.</p>');
+                    else
+                      p('<p style="font-size:13px;color:#6B6A64;margin-bottom:10px">'||
+                        l_label||' &middot; '||l_dimname||' üzrə'||
+                        case when l_ostat is not null then ' &middot; filtr: '||l_ostat end||
+                        case when l_days  is not null then ' &middot; son '||l_days||' gün' end||'</p>');
+                      p('<table class="dt-table"><thead><tr><th>'||l_dimname||'</th>'||
+                        '<th style="text-align:right">'||l_label||'</th></tr></thead><tbody>');
+                      p(l_rows);
+                      if l_cnt > 1 and l_metric in ('SUM','COUNT') then
+                        p('<tr style="background:#F7F6F2"><td><b>Cəmi</b></td>'||
+                          '<td style="text-align:right"><b>'||
+                          case when l_metric = 'COUNT' then to_char(l_total,'FM999G999G990')
+                               else to_char(l_total,'FM999G999G990D00')||' ₼' end||'</b></td></tr>');
+                      end if;
+                      p('</tbody></table>');
+                      p('<p style="font-size:11px;color:#9C9A91;margin-top:8px">'||
+                        'Rəqəmlər verilənlər bazasından hesablanıb.</p>');
+                    end if;
+                 
+                  elsif l_action = 'SUMMARY' then
+                    for t in (select ticket_id, subject, priority, status from v_tickets) loop
+                      l_data := l_data||t.ticket_id||'|'||t.subject||'|'||t.priority||'|'||t.status||chr(10);
+                    end loop;
+                    p('<p>'||apex_escape.html(
+                        apex_ai.generate(
+                          p_system_prompt => 'Azərbaycan dilində qısa xülasə yaz. Maksimum 5 cümlə.',
+                          p_prompt        => 'Bu dəstək sorğularını təhlil et:'||chr(10)||l_data,
+                          p_service_static_id => 'MAIN_AI'))||'</p>');
+                 
+                  else
+                    p('<p>Sorğunu başa düşmədim. Nümunə: «4821 nömrəli sorğunu tap», '||
+                      '«region üzrə cəmi gəlir» və ya «həftəlik xülasə».</p>');
+                  end if;
+                 
+                  htp.p(l_out);
+                exception
+                  when others then
+                    htp.p('<p style="color:#B3261E">Xəta: '||apex_escape.html(sqlerrm)||'</p>');
+                end;
+                 
+                ```
+        }
+        execution {
+            sequence: 30
+            point: ajaxCallback
+        }
+        advanced {
+            executionMappingIdentifier: 9349216815170306
+        }
+    )
+
+    process ai-command (
+        name: AI_COMMAND
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                  l_input    varchar2(4000) := apex_application.g_x01;
+                  l_json     clob;
+                  l_action   varchar2(50);
+                  l_id       number;
+                  l_status   varchar2(30);
+                  l_priority varchar2(20);
+                  l_out      clob := '';
+                  l_cnt      number := 0;
+                  l_data     clob := '';
+                 
+                  procedure p(s varchar2) is begin l_out := l_out || s; end;
+                 
+                  procedure row_ticket(t v_tickets%rowtype) is
+                  begin
+                    p('<tr><td><b>№'||t.ticket_id||'</b></td>');
+                    p('<td>'||apex_escape.html(t.subject)||'</td>');
+                    p('<td>'||case t.priority when 'URGENT' then 'Təcili'
+                                              when 'MEDIUM' then 'Orta'
+                                              else 'Aşağı' end||'</td>');
+                    p('<td>'||case t.status when 'NEW' then 'Yeni'
+                                            when 'IN_PROGRESS' then 'İcradadır'
+                                            when 'WAITING' then 'Gözləyir'
+                                            else 'Həll edilib' end||'</td></tr>');
+                  end;
+                begin
+                  ------------------------------------------------------------------
+                  -- 1. Model yalnız niyyəti JSON kimi qaytarır
+                  ------------------------------------------------------------------
+                  l_json := apex_ai.generate(
+                    p_system_prompt =>
+                      'İstifadəçinin sorğusunu JSON-a çevir. YALNIZ JSON qaytar, '||
+                      'izahat və markdown yazma. Struktur: '||
+                      '{"action":"...","ticket_id":null,"status":null,"priority":null,"sku":null,"qty":null}. '||
+                      'İcazəli action dəyərləri: FIND_TICKET (nömrə ilə tap), '||
+                      'LIST_TICKETS (prioritet və ya statusa görə siyahı), '||
+                      'MOVE_TICKET (statusu dəyiş), LOW_STOCK (stoku az məhsullar), '||
+                      'SUMMARY (xülasə), UNKNOWN (anlaşılmadı). '||
+                      'status dəyərləri: NEW, IN_PROGRESS, WAITING, RESOLVED. '||
+                      'priority dəyərləri: URGENT, MEDIUM, LOW.',
+                    p_prompt            => l_input,
+                    p_service_static_id => 'MAIN_AI');
+                 
+                  -- Modelin bəzən əlavə etdiyi \``` işarələrini təmizlə
+                  l_json := regexp_replace(l_json, '\```(json)?', '');
+                 
+                  l_action   := upper(json_value(l_json, '$.action'));
+                  l_id       := json_value(l_json, '$.ticket_id' returning number);
+                  l_status   := upper(json_value(l_json, '$.status'));
+                  l_priority := upper(json_value(l_json, '$.priority'));
+                 
+                  ------------------------------------------------------------------
+                  -- 2. Yalnız icazəli əməliyyatlar icra olunur
+                  ------------------------------------------------------------------
+                  if l_action = 'FIND_TICKET' and l_id is not null then
+                    p('<table class="dt-table"><thead><tr><th>№</th><th>Mövzu</th>'||
+                      '<th>Prioritet</th><th>Status</th></tr></thead><tbody>');
+                    for t in (select * from v_tickets where ticket_id = l_id) loop
+                      row_ticket(t); l_cnt := l_cnt + 1;
+                    end loop;
+                    p('</tbody></table>');
+                    if l_cnt = 0 then
+                      l_out := '<p>№'||l_id||' nömrəli sorğu tapılmadı.</p>';
+                    end if;
+                 
+                  elsif l_action = 'LIST_TICKETS' then
+                    p('<table class="dt-table"><thead><tr><th>№</th><th>Mövzu</th>'||
+                      '<th>Prioritet</th><th>Status</th></tr></thead><tbody>');
+                    for t in (select * from v_tickets
+                               where (l_priority is null or priority = l_priority)
+                                 and (l_status   is null or status   = l_status)
+                               order by created_date desc
+                               fetch first 20 rows only) loop
+                      row_ticket(t); l_cnt := l_cnt + 1;
+                    end loop;
+                    p('</tbody></table><p class="dt-muted">'||l_cnt||' sorğu tapıldı.</p>');
+                 
+                  elsif l_action = 'MOVE_TICKET' and l_id is not null
+                        and l_status in ('NEW','IN_PROGRESS','WAITING','RESOLVED') then
+                    update tickets
+                       set status        = l_status,
+                           resolved_date = case when l_status = 'RESOLVED' then sysdate end
+                     where ticket_id = l_id;
+                    if sql%rowcount = 0 then
+                      p('<p>№'||l_id||' nömrəli sorğu tapılmadı.</p>');
+                    else
+                      p('<p class="dt-green"><b>№'||l_id||' sorğusunun statusu dəyişdirildi: '||
+                        case l_status when 'NEW' then 'Yeni'
+                                      when 'IN_PROGRESS' then 'İcradadır'
+                                      when 'WAITING' then 'Gözləyir'
+                                      else 'Həll edilib' end||'</b></p>');
+                    end if;
+                 
+                  elsif l_action = 'LOW_STOCK' then
+                    p('<table class="dt-table"><thead><tr><th>Kod</th><th>Məhsul</th>'||
+                      '<th>Mövcud</th><th>Status</th></tr></thead><tbody>');
+                    for i in (select * from v_inventory_status
+                               where status <> 'In stock' order by qty_on_hand) loop
+                      p('<tr><td>'||apex_escape.html(i.sku)||'</td>');
+                      p('<td>'||apex_escape.html(i.item_name)||'</td>');
+                      p('<td><b>'||i.qty_on_hand||'</b></td>');
+                      p('<td>'||case i.status when 'Low stock' then 'Stok azdır'
+                                              else 'Stokda yoxdur' end||'</td></tr>');
+                      l_cnt := l_cnt + 1;
+                    end loop;
+                    p('</tbody></table><p class="dt-muted">'||l_cnt||' məhsul.</p>');
+                 
+                  elsif l_action = 'SUMMARY' then
+                    for t in (select ticket_id, subject, priority, status from v_tickets) loop
+                      l_data := l_data || t.ticket_id||'|'||t.subject||'|'||
+                                t.priority||'|'||t.status||chr(10);
+                    end loop;
+                    p('<p>'||apex_escape.html(
+                        apex_ai.generate(
+                          p_system_prompt => 'Azərbaycan dilində qısa xülasə yaz. Maksimum 5 cümlə.',
+                          p_prompt        => 'Bu dəstək sorğularını təhlil et:'||chr(10)||l_data,
+                          p_service_static_id => 'MAIN_AI'))||'</p>');
+                 
+                  else
+                    p('<p>Sorğunu başa düşmədim. Nümunə: «4821 nömrəli sorğunu tap» '||
+                      'və ya «təcili sorğuları göstər».</p>');
+                  end if;
+                 
+                  htp.p(l_out);
+                exception
+                  when others then
+                    htp.p('<p class="dt-red">Xəta: '||apex_escape.html(sqlerrm)||'</p>');
+                end;
+                ```
+        }
+        execution {
+            sequence: 10
+            point: ajaxCallback
+        }
+        advanced {
+            executionMappingIdentifier: 9348996780170303
+        }
+        config {
+            buildOption: @commented-out
+        }
+    )
+
+)
+

@@ -1,0 +1,334 @@
+page 9999 (
+    name: Login Page
+    alias: LOGIN
+    title: Executive Dashboard - Log In
+    appearance {
+        pageTemplate: @/login
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        warnOnUnsavedChanges: false
+    }
+    css {
+        inline:
+            ```css
+            
+            @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+             
+            .t-PageBody--login{
+              background:#F4F3EF;
+              font-family:'IBM Plex Sans',system-ui,sans-serif;
+            }
+             
+            /* Logotip: işarə mətn xəttinin üstündə dayanır */
+            .ev-logo{
+              margin:0 0 28px;
+              text-align:center;
+              font-family:'Manrope',system-ui,sans-serif;
+              font-size:42px;
+              font-weight:800;
+              letter-spacing:-1.2px;
+              line-height:1;
+              color:#16302F;
+              white-space:nowrap;
+            }
+            .ev-mark-wrap{
+              display:inline-block;      /* alt kənarı mətn xəttinə oturur */
+              vertical-align:baseline;
+              margin-right:2px;
+            }
+            .ev-mark{display:block;width:30px;height:30px}
+             
+            /* Giriş kartı */
+            .t-Login-region{
+              border:1px solid #E3E1DB;
+              border-radius:18px;
+              box-shadow:0 2px 14px rgba(22,48,47,.06);
+            }
+            .t-Login-region .t-Login-logo{display:none}   /* APEX-in öz loqo yeri */
+             
+            .t-Login-region .t-Button--hot,
+            .t-PageBody--login .t-Button--hot{
+              background-color:#0C6E6E;
+              border-color:#0C6E6E;
+              font-weight:700;
+            }
+            .t-Login-region .t-Button--hot:hover,
+            .t-PageBody--login .t-Button--hot:hover{
+              background-color:#095857;
+              border-color:#095857;
+            }
+             
+            .t-PageBody--login .t-Form-fieldContainer .t-Form-inputContainer input:focus{
+              border-color:#0C6E6E;
+              box-shadow:0 0 0 3px rgba(12,110,110,.12);
+            }
+             
+            @media (max-width:480px){
+              .ev-logo{font-size:34px;letter-spacing:-0.9px}
+              .ev-mark{width:24px;height:24px}
+            }
+            ```
+    }
+    htmlHeader {
+        htmlHeader: <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect x='16' y='16' width='16' height='88' rx='8' fill='%2316302F'/%3E%3Crect x='40' y='16' width='64' height='16' rx='8' fill='%230C6E6E'/%3E%3Crect x='48' y='52' width='44' height='16' rx='8' fill='%230C6E6E'/%3E%3Crect x='40' y='88' width='64' height='16' rx='8' fill='%230C6E6E'/%3E%3C/svg%3E">
+    }
+    security {
+        authentication: public
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+
+    region executive-dashboard (
+        name: Executive Dashboard
+        type: staticContent
+        layout {
+            sequence: 10
+            slot: contentBody
+        }
+        appearance {
+            template: @/login
+            templateOptions: #DEFAULT#
+        }
+        image {
+            fileUrl: #APP_FILES#icons/app-icon-512.png
+        }
+    )
+
+    region logo (
+        name: Logo
+        type: staticContent
+        source {
+            htmlCode: <p class="ev-logo"><span class="ev-mark-wrap"><svg class="ev-mark" viewBox="16 16 88 88" role="img" aria-label="E"><rect x="16" y="16" width="16" height="88" rx="8" fill="#16302F"></rect><rect x="40" y="16" width="64" height="16" rx="8" fill="#0C6E6E"></rect><rect x="48" y="52" width="44" height="16" rx="8" fill="#0C6E6E"></rect><rect x="40" y="88" width="64" height="16" rx="8" fill="#0C6E6E"></rect></svg></span>voris</p>
+        }
+        layout {
+            sequence: 5
+            parentRegion: @executive-dashboard
+            slot: regionBody
+        }
+        appearance {
+            template: @/blank-with-attributes
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    pageItem P9999_PASSWORD (
+        type: password
+        label {
+            label: Password
+            alignment: right
+        }
+        layout {
+            sequence: 20
+            region: @executive-dashboard
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/hidden
+            templateOptions: #DEFAULT#
+            icon: fa-key
+            width: 40
+            valuePlaceholder: Password
+        }
+        validation {
+            maxLength: 100
+        }
+        advanced {
+            customAttributes: autocomplete="current-password"
+        }
+        sessionState {
+            storage: request
+        }
+    )
+
+    pageItem P9999_REMEMBER (
+        type: checkbox
+        label {
+            label: Remember username
+            alignment: right
+        }
+        layout {
+            sequence: 30
+            region: @executive-dashboard
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/hidden
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: expression
+            plsqlExpression: apex_authentication.persistent_cookies_enabled
+        }
+    )
+
+    pageItem P9999_USERNAME (
+        type: textField
+        label {
+            label: Username
+            alignment: right
+        }
+        layout {
+            sequence: 10
+            region: @executive-dashboard
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/hidden
+            templateOptions: #DEFAULT#
+            icon: fa-user
+            width: 40
+            valuePlaceholder: Username
+        }
+        validation {
+            maxLength: 100
+        }
+        advanced {
+            customAttributes: autocomplete="username"
+        }
+        sessionState {
+            storage: request
+        }
+    )
+
+    button login (
+        buttonName: LOGIN
+        label: Sign In
+        layout {
+            sequence: 40
+            region: @executive-dashboard
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: true
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+        }
+    )
+
+    process clear-page-s-cache (
+        name: Clear Page(s) Cache
+        type: clearSessionState
+        execution {
+            sequence: 30
+        }
+        advanced {
+            executionMappingIdentifier: 9308182312364796
+        }
+    )
+
+    process get-username-cookie (
+        name: Get Username Cookie
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                :P9999_USERNAME := apex_authentication.get_login_username_cookie;
+                :P9999_REMEMBER := case when :P9999_USERNAME is not null then 'Y' end;
+                ```
+        }
+        execution {
+            sequence: 10
+            point: beforeHeader
+        }
+        advanced {
+            executionMappingIdentifier: 9307709761364796
+        }
+    )
+
+    process login (
+        name: Login
+        type: invokeApi
+        invoke {
+            package: APEX_AUTHENTICATION
+            procedureOrFunction: LOGIN
+        }
+        execution {
+            sequence: 20
+        }
+        advanced {
+            executionMappingIdentifier: 9304443291364791
+        }
+
+        parameter p_password (
+            value {
+                type: item
+                item: P9999_PASSWORD
+            }
+            advanced {
+                displaySequence: 2
+            }
+        )
+
+        parameter p_set_persistent_auth (
+            parameter {
+                dataType: boolean
+                hasDefault: true
+            }
+            value {
+                type: apiDefault
+            }
+            advanced {
+                displaySequence: 3
+            }
+        )
+
+        parameter p_username (
+            value {
+                type: item
+                item: P9999_USERNAME
+            }
+            advanced {
+                displaySequence: 1
+            }
+        )
+
+    )
+
+    process set-username-cookie (
+        name: Set Username Cookie
+        type: invokeApi
+        invoke {
+            package: APEX_AUTHENTICATION
+            procedureOrFunction: SEND_LOGIN_USERNAME_COOKIE
+        }
+        execution {
+            sequence: 10
+        }
+        advanced {
+            executionMappingIdentifier: 9306320259364795
+        }
+
+        parameter p_consent (
+            parameter {
+                dataType: boolean
+            }
+            value {
+                type: item
+                item: P9999_REMEMBER
+            }
+            advanced {
+                displaySequence: 2
+            }
+        )
+
+        parameter p_username (
+            value {
+                type: expression
+                plsqlExpression: lower( :P9999_USERNAME )
+            }
+            advanced {
+                displaySequence: 1
+            }
+        )
+
+    )
+
+)
+

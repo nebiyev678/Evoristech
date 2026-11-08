@@ -1,0 +1,26 @@
+# Credentials — never commit
+*.wallet
+wallet*/
+cwallet.sso
+tnsnames.ora
+sqlnet.ora
+ewallet.p12
+.env
+*_credentials*
+apikey*
+*.key
+
+# SQLcl / Oracle
+*.log
+dump/
+*.dmp
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editors
+.idea/
+.vscode/
+*.swp

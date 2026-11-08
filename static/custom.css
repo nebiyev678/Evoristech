@@ -1,0 +1,126 @@
+/* ============================================================
+   Custom theme CSS — Inventory & Budget Tracker / Approval Workflow
+   Install: Shared Components > Static Application Files > Upload
+   as "custom.css", then reference it in:
+   App Builder > your app > Edit Application Definition >
+   User Interface > CSS > File URLs:
+     #APP_IMAGES#custom.css
+   ============================================================ */
+
+/* ---- Fonts (add the <link> in Page Attributes > HTML Header instead,
+   see the .md guide) ---- */
+
+:root {
+  --brand-teal: #0C6E6E;
+  --brand-teal-dark: #095857;
+  --brand-navy: #16302F;
+  --ink: #1A1A18;
+  --muted: #6B6A64;
+  --border: #E3E1DB;
+  --bg: #F4F3EF;
+  --amber: #B7791F;
+  --amber-bg: #FCEFD9;
+  --amber-text: #8A5A12;
+  --danger: #B3261E;
+  --danger-bg: #FBEAEA;
+  --success: #1A7F5A;
+  --success-bg: #E7F5EE;
+  --font-heading: 'Manrope', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+body, .t-Body {
+  font-family: var(--font-body);
+  background: var(--bg);
+}
+
+/* Headings use the display font */
+h1, h2, h3, .t-PageBody h1 {
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+/* Dark sidebar navigation, matches the mockups */
+.t-Body-nav, #t_Body_nav {
+  background: var(--brand-navy) !important;
+}
+.t-Body-nav .t-NavList-item.is-active > a,
+.t-Body-nav .t-NavList-item.is-current > a {
+  background: var(--brand-teal) !important;
+  color: #fff !important;
+  border-radius: 8px;
+}
+.t-Body-nav .t-NavList-item > a {
+  color: #A9BFBD;
+}
+
+/* Primary buttons */
+.t-Button--hot, .a-Button--hot, button.t-Button.t-Button--hot {
+  background-color: var(--brand-teal) !important;
+  border-color: var(--brand-teal) !important;
+}
+.t-Button--hot:hover {
+  background-color: var(--brand-teal-dark) !important;
+}
+
+/* Card / region surfaces */
+.t-Region, .t-Card {
+  border-radius: 12px !important;
+  border-color: var(--border) !important;
+}
+
+/* --------------------------------------------------------------
+   Status badge classes — use these as the "CSS Classes" attribute
+   on an Interactive Report column (HTML Expression) or a Display
+   Item, e.g.: <span class="badge badge-pending">#STATUS#</span>
+   -------------------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.badge-pending   { background: var(--amber-bg);   color: var(--amber-text); }
+.badge-approved  { background: var(--success-bg); color: var(--success); }
+.badge-rejected  { background: var(--danger-bg);  color: var(--danger); }
+.badge-instock   { background: var(--success-bg); color: var(--success); }
+.badge-lowstock  { background: #F6D6D2;           color: #8C2019; }
+.badge-outstock  { background: #EDECE6;           color: #57564F; }
+
+/* KPI cards on the Dashboard — apply class "kpi-card" to the region */
+.kpi-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.kpi-card .kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.kpi-card .kpi-value {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 800;
+  margin-top: 6px;
+}
+
+/* Simple progress bar — used for budget-by-category */
+.progress-track {
+  height: 8px;
+  background: #EDECE6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--brand-teal);
+  border-radius: 999px;
+}
+.progress-fill.warn { background: var(--amber); }
+.progress-fill.over { background: var(--danger); }

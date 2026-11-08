@@ -1,0 +1,278 @@
+page 3 (
+    name: Helpdesk Page
+    alias: HELPDESK-PAGE
+    title: Helpdesk Page
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+    }
+    css {
+        inline:
+            ```css
+            /* =============================================================
+               SHARED STYLES — paste into EACH page:
+               Page Designer > click the page name (root node) > CSS > Inline
+               (Inline CSS avoids the #APP_FILES# loading problem entirely)
+               ============================================================= */
+            @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+            
+            .dt{font-family:'IBM Plex Sans',system-ui,sans-serif;color:#1A1A18}
+            .dt h2{font-family:'Manrope',system-ui,sans-serif;font-size:15px;font-weight:700;margin:0}
+            
+            /* KPI cards */
+            .dt-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+            .dt-kpi{background:#fff;border:1px solid #E3E1DB;border-radius:12px;padding:16px 18px}
+            .dt-kpi-label{font-size:12px;color:#6B6A64;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+            .dt-kpi-value{font-family:'Manrope',system-ui,sans-serif;font-size:26px;font-weight:800;margin-top:6px}
+            .dt-kpi-sub{font-size:12px;font-weight:600;margin-top:4px;color:#6B6A64}
+            .dt-green{color:#1A7F5A}.dt-red{color:#B3261E}
+            
+            /* Cards and tables */
+            .dt-card{background:#fff;border:1px solid #E3E1DB;border-radius:14px;overflow:hidden;margin-bottom:20px}
+            .dt-card-h{padding:14px 20px;border-bottom:1px solid #E3E1DB;display:flex;justify-content:space-between;align-items:center}
+            .dt-card-b{padding:18px 20px}
+            .dt-scroll{overflow-x:auto}
+            .dt-table{width:100%;border-collapse:collapse;font-size:13px}
+            .dt-table th{text-align:left;background:#F7F6F2;color:#6B6A64;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:11px 16px;border-bottom:1px solid #E3E1DB;white-space:nowrap}
+            .dt-table td{padding:13px 16px;border-bottom:1px solid #EDECE6;vertical-align:middle}
+            .dt-table tr:last-child td{border-bottom:none}
+            .dt-table tr.dt-alert td{background:#FBEAEA}
+            .dt-muted{color:#6B6A64}
+            
+            /* Status badges */
+            .dt-badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+            .dt-b-warn{background:#FCEFD9;color:#8A5A12}
+            .dt-b-ok{background:#E7F5EE;color:#1A7F5A}
+            .dt-b-bad{background:#F6D6D2;color:#8C2019}
+            .dt-b-neutral{background:#EDECE6;color:#57564F}
+            
+            /* Buttons */
+            .dt-btn{background:#0C6E6E;color:#fff;border:0;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px}
+            .dt-btn:hover{background:#095857}
+            .dt-btn-ghost{background:#fff;color:#B3261E;border:1px solid #E9C6C2}
+            .dt-btn-ghost:hover{background:#FBEAEA}
+            
+            /* Two-column layout */
+            .dt-grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+            .dt-grid2 .dt-card{margin-bottom:0}
+            
+            /* Progress bars */
+            .dt-bar{margin-bottom:14px}
+            .dt-bar-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+            .dt-track{height:8px;background:#EDECE6;border-radius:999px;overflow:hidden}
+            .dt-fill{height:100%;background:#0C6E6E;border-radius:999px}
+            .dt-fill.warn{background:#B7791F}.dt-fill.over{background:#B3261E}
+            
+            /* Kanban (Helpdesk) */
+            .dt-kanban{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+            .dt-col-h{display:flex;justify-content:space-between;align-items:center;padding:0 4px 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6B6A64}
+            .dt-count{background:#EDECE6;border-radius:999px;padding:2px 8px}
+            .dt-ticket{background:#fff;border:1px solid #E3E1DB;border-left:3px solid #6B6A64;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+            .dt-ticket.p-urgent{border-left-color:#B3261E}.dt-ticket.p-medium{border-left-color:#B7791F}
+            .dt-ticket.done{opacity:.75;border-left-color:#1A7F5A}
+            .dt-ticket-id{font-size:12px;color:#6B6A64;margin-bottom:4px}
+            .dt-ticket-t{font-size:13px;font-weight:600;margin-bottom:10px}
+            .dt-ticket-f{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#6B6A64}
+            .dt-ticket .dt-btn{margin-top:10px;width:100%}
+            
+            /* Order tracking steps (Client Portal) */
+            .dt-track-row{display:flex;align-items:center;gap:20px;padding:16px 20px;border-bottom:1px solid #EDECE6}
+            .dt-track-row:last-child{border-bottom:none}
+            .dt-track-id{width:150px;flex-shrink:0;font-size:13px}
+            .dt-steps{flex:1;display:flex;align-items:center;min-width:280px}
+            .dt-step{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:#9C9A91}
+            .dt-step.on{color:#1A1A18;font-weight:600}
+            .dt-dot{width:14px;height:14px;border-radius:50%;background:#E3E1DB}
+            .dt-step.on .dt-dot{background:#0C6E6E}
+            .dt-line{flex:1;height:2px;background:#E3E1DB;margin-bottom:18px}
+            .dt-line.on{background:#0C6E6E}
+            .dt-eta{width:110px;text-align:right;flex-shrink:0;font-size:12px;color:#6B6A64}
+            
+            @media (max-width:900px){
+              .dt-grid2,.dt-kanban{grid-template-columns:1fr}
+              .dt-track-row{flex-wrap:wrap}
+            }
+            
+            .kb-hint{font-size:13px;color:#6B6A64;margin:0 0 14px}
+             
+            .kb-col{border-radius:14px;padding:6px;transition:background .15s,outline .15s;
+              outline:2px dashed transparent;outline-offset:-4px}
+            .kb-col.kb-over{background:#EFF7F6;outline-color:#0C6E6E}
+            .kb-body{min-height:120px}
+             
+            .kb-card{cursor:grab;user-select:none;transition:opacity .15s,transform .15s}
+            .kb-card:active{cursor:grabbing}
+            .kb-card.dragging{opacity:.45;transform:rotate(1.5deg)}
+            .kb-card.saving{opacity:.6;pointer-events:none}
+             
+            @media (max-width:900px){
+              .kb-card{cursor:default}
+              .kb-hint{display:none}
+            }
+            ```
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+
+    region breadcrumb (
+        name: Breadcrumb
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: [
+                #DEFAULT#
+                t-BreadcrumbRegion--useBreadcrumbTitle
+            ]
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region new (
+        name: HelpDesk
+        type: dynamicContent
+        source {
+            plsqlFunctionBody:
+                ```plsql
+                declare
+                  l_h clob;
+                  procedure p(s varchar2) is begin l_h := l_h || s; end;
+                 
+                  procedure render_column(p_status varchar2, p_label varchar2,
+                                          p_btn_label varchar2, p_next varchar2) is
+                    l_cnt number;
+                  begin
+                    select count(*) into l_cnt from tickets where status = p_status;
+                 
+                    -- Sütun özü atma zonasıdır (data-status atributu vacibdir)
+                    p('<div class="kb-col" data-status="'||p_status||'" '||
+                      'ondragover="kbOver(event)" ondragleave="kbLeave(event)" '||
+                      'ondrop="kbDrop(event)">');
+                    p('<div class="dt-col-h"><span>'||p_label||'</span>'||
+                      '<span class="dt-count" data-count="'||p_status||'">'||l_cnt||'</span></div>');
+                    p('<div class="kb-body">');
+                 
+                    for t in (select * from v_tickets where status = p_status
+                               order by case priority when 'URGENT' then 1
+                                                      when 'MEDIUM' then 2
+                                                      else 3 end, created_date) loop
+                      p('<div class="dt-ticket kb-card '||
+                          case when p_status = 'RESOLVED' then 'done'
+                               else 'p-'||lower(t.priority) end||'" '||
+                        'draggable="true" data-id="'||t.ticket_id||'" '||
+                        'ondragstart="kbStart(event)" ondragend="kbEnd(event)">');
+                      p('<div class="dt-ticket-id">№'||t.ticket_id||' &middot; '||
+                        to_char(t.created_date,'DD.MM.YYYY')||'</div>');
+                      p('<div class="dt-ticket-t">'||apex_escape.html(t.subject)||'</div>');
+                      p('<div class="dt-ticket-f"><span class="dt-badge '||
+                          case t.priority when 'URGENT' then 'dt-b-bad'
+                                          when 'MEDIUM' then 'dt-b-warn'
+                                          else 'dt-b-neutral' end||'">'||
+                          case t.priority when 'URGENT' then 'Təcili'
+                                          when 'MEDIUM' then 'Orta'
+                                          else 'Aşağı' end||'</span>');
+                      p('<span>'||apex_escape.html(nvl(t.agent_name, t.requester_name))||'</span></div>');
+                      if p_next is not null then
+                        p('<button type="button" class="dt-btn kb-btn" '||
+                          'onclick="dtAction(''TICKET_STATUS'','||t.ticket_id||','''||p_next||''')">'||
+                          p_btn_label||'</button>');
+                      end if;
+                      p('</div>');
+                    end loop;
+                 
+                    p('</div></div>');
+                  end;
+                begin
+                  p('<div class="dt">');
+                  p('<p class="kb-hint">Kartı tutub başqa sütuna sürüşdürün. '||
+                    'Səhv olarsa geri qaytara bilərsiniz.</p>');
+                  p('<div class="dt-kanban">');
+                  render_column('NEW',         'Yeni',                 'İcraya başla', 'IN_PROGRESS');
+                  render_column('IN_PROGRESS', 'İcradadır',            'Həll edildi',  'RESOLVED');
+                  render_column('WAITING',     'Sorğu edəni gözləyir', 'Davam et',     'IN_PROGRESS');
+                  render_column('RESOLVED',    'Həll edilib',          'Yenidən aç',   'NEW');
+                  p('</div></div>');
+                  return l_h;
+                end;
+                ```
+        }
+        layout {
+            sequence: 20
+            slot: body
+        }
+        appearance {
+            template: @/blank-with-attributes
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    button add-ticket_1 (
+        buttonName: Add_Ticket
+        label: Əlavə et
+        layout {
+            sequence: 10
+            region: @new
+            slot: aboveBox
+        }
+        appearance {
+            buttonTemplate: @/text-with-icon
+            templateOptions: [
+                #DEFAULT#
+                t-Button--iconLeft
+            ]
+            icon: fa-ticket
+        }
+        behavior {
+            action: redirectThisApp
+            target: {
+                page: 4
+            }
+        }
+    )
+
+    process ticket-status (
+        name: TICKET_STATUS
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                begin
+                  if apex_application.g_x02 not in ('NEW','IN_PROGRESS','WAITING','RESOLVED') then
+                    raise_application_error(-20001, 'Invalid status');
+                  end if;
+                 
+                  update tickets
+                     set status        = apex_application.g_x02,
+                         resolved_date = case when apex_application.g_x02 = 'RESOLVED' then sysdate end,
+                         agent_id      = nvl(agent_id, (select min(agent_id) from agents))
+                   where ticket_id = to_number(apex_application.g_x01);
+                 
+                  htp.p('OK');
+                end;
+                ```
+        }
+        execution {
+            sequence: 10
+            point: ajaxCallback
+        }
+        advanced {
+            executionMappingIdentifier: 9279014853844525
+        }
+    )
+
+)
+
