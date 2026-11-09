@@ -24,3 +24,6 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# Export archives — the unzipped tree is what we version
+*.zip
