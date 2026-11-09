@@ -1,0 +1,76 @@
+name: Validate
+
+# Runs on every pull request and every push to main.
+# Needs NO database access, NO wallet, NO secrets — apex validate works offline.
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  apexlang:
+    name: APEXLang source validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cheap guard: a credential file must never reach this repo.
+      - name: Refuse committed credentials
+        run: |
+          if git ls-files \
+             | grep -Ei '(cwallet\.sso|ewallet\.p12|\.p12$|\.jks$|\.key$|tnsnames\.ora|sqlnet\.ora|(^|/)\.env$)'; then
+            echo "::error::A credential file is tracked in this repository."
+            exit 1
+          fi
+          echo "No credential files tracked."
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache SQLcl
+        id: sqlcl-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/sqlcl
+          key: sqlcl-latest-v1
+
+      - name: Install SQLcl
+        if: steps.sqlcl-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sSLf -o /tmp/sqlcl.zip \
+            https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-latest.zip
+          unzip -q /tmp/sqlcl.zip -d "$HOME"
+
+      - name: Add SQLcl to PATH
+        run: echo "$HOME/sqlcl/bin" >> "$GITHUB_PATH"
+
+      - name: Show SQLcl version
+        run: sql -v
+
+      - name: apex validate
+        run: |
+          set -o pipefail
+          sql -nolog <<'SQL' | tee validate.log
+          apex validate -input executive-dashboard/apex
+          exit
+          SQL
+          # Belt and braces: do not trust the exit code alone until we have
+          # confirmed that `apex validate` returns non-zero on failure.
+          if grep -qiE '(^|[^a-z])(error|ORA-[0-9]|SP2-[0-9])' validate.log; then
+            echo "::error::APEXLang validation reported errors — see the log above."
+            exit 1
+          fi
+          echo "APEXLang source is valid."
+
+      - name: Upload validation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apex-validate-log
+          path: validate.log
+          if-no-files-found: ignore
