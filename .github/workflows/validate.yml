@@ -1,7 +1,11 @@
 name: Validate
 
-# Runs on every pull request and every push to main.
-# Needs NO database access, NO wallet, NO secrets — apex validate works offline.
+# Two independent gates, neither of which needs a database, a wallet or a secret.
+#
+#   apexlang     — parses the APEXLang source offline with SQLcl
+#   sql-safety   — static checks for SQL patterns that can destroy data
+#
+# Both run on every pull request and every push to main.
 
 on:
   pull_request:
@@ -59,12 +63,24 @@ jobs:
           apex validate -input executive-dashboard/apex
           exit
           SQL
-          # Belt and braces: do not trust the exit code alone until we have
-          # confirmed that `apex validate` returns non-zero on failure.
-          if grep -qiE '(^|[^a-z])(error|ORA-[0-9]|SP2-[0-9])' validate.log; then
-            echo "::error::APEXLang validation reported errors — see the log above."
+
+          # `apex validate` exits 0 even when validation fails — verified
+          # 2026-11-09 against SQLcl 26.3.1, which reported two compile errors
+          # and still returned success to the shell. So the exit code above is
+          # NOT the gate; this is. Do not remove it.
+          #
+          # Matched on SQLcl's own marker rather than the word "error", which
+          # appears legitimately in APEXLang source (errorMessage:, error { }).
+          if grep -qiE 'APEXlang Compile Errors|ORA-[0-9]{5}|SP2-[0-9]{4}' validate.log; then
+            echo "::error::apex validate reported errors — see the log above."
             exit 1
           fi
+
+          if ! grep -qi 'Validation successful' validate.log; then
+            echo "::error::apex validate did not report success. It may not have run at all."
+            exit 1
+          fi
+
           echo "APEXLang source is valid."
 
       - name: Upload validation log
@@ -74,3 +90,20 @@ jobs:
           name: apex-validate-log
           path: validate.log
           if-no-files-found: ignore
+
+  sql-safety:
+    name: SQL safety lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # the migration-immutability check needs history
+
+      - name: Lint the SQL
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            bash db/lint.sh "origin/${{ github.base_ref }}"
+          else
+            bash db/lint.sh
+          fi
